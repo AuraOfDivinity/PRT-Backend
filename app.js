@@ -5,40 +5,27 @@ const path = require('path');
 const multer = require('multer');
 const uuidv4 = require('uuid/v4');
 const cors = require('cors');
-
+const result = require('dotenv').config();
 const feedRoutes = require('./routes/feed');
 const authRoutes = require('./routes/auth');
 const proposalRoutes = require('./routes/proposal');
 
 const app = express();
 
-const fileStorage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, 'images');
-  },
-  filename: function(req, file, cb) {
-    cb(null, uuidv4());
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype === 'image/png' ||
-    file.mimetype === 'image/jpg' ||
-    file.mimetype === 'image/jpeg'
-  ) {
-    cb(null, true);
-  } else {
-    cb(null, false);
-  }
-};
+// const fileStorage = multer.diskStorage({
+//   destination: function(req, file, cb) {
+//     cb(null, 'images');
+//   },
+//   filename: function(req, file, cb) {
+//     cb(null, uuidv4());
+//   }
+// });
+var memoryStorage = multer.memoryStorage();
 
 // app.use(bodyParser.urlencoded()); // x-www-form-urlencoded <form>
 app.use(bodyParser.json()); // application/json
 
-app.use(
-  multer({ storage: fileStorage, fileFilter: fileFilter }).single('image')
-);
+app.use(multer({ storage: memoryStorage }).single('file'));
 
 // Serving the images statically.
 app.use('/images', express.static(path.join(__dirname, 'images')));

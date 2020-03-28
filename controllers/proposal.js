@@ -2,6 +2,8 @@ const { validationResult } = require('express-validator');
 
 const Proposal = require('../models/proposal');
 const User = require('../models/user');
+const DOCUMENT = require('../models/document');
+var AWS = require('aws-sdk');
 
 exports.createProposal = (req, res, next) => {
   const errors = validationResult(req);
@@ -13,10 +15,12 @@ exports.createProposal = (req, res, next) => {
 
   const title = req.body.title;
   const organization = req.body.organization;
+  const userId = req.body.userId;
 
   const proposal = new Proposal({
     title: title,
-    organization: organization
+    organization: organization,
+    creator: userId
   });
 
   proposal
@@ -42,8 +46,6 @@ exports.saveProposal = (req, res, next) => {
     error.statusCode = 422;
     throw error;
   }
-
-  console.log(req.body.text);
   const proposalId = req.body.proposalId;
   const text = req.body.text;
   Proposal.findByIdAndUpdate(proposalId, { content: text }, (err, result) => {
@@ -53,4 +55,83 @@ exports.saveProposal = (req, res, next) => {
       res.send(result);
     }
   });
+};
+
+exports.getById = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const proposalId = req.body.proposalId;
+  Proposal.findById(proposalId, (err, proposal) => {
+    if (err) {
+      res.send(err);
+    } else {
+      res.send(proposal);
+    }
+  });
+};
+
+exports.attach = (req, res, next) => {
+  console.log('ATTACH CALLED');
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+  if (!req.file) {
+    const error = new Error('No image provided.');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const proposalId = req.body.proposalId;
+  const file = req.file;
+  const s3FileURL = process.env.AWS_UPLOADED_FILE_URL_LINK;
+
+  let s3bucket = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION
+  });
+
+  var params = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: file.originalname,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+    ACL: 'public-read'
+  };
+
+  s3bucket.upload(params, function(err, data) {
+    if (err) {
+      res.status(500).json({ error: true, Message: err });
+    } else {
+      res.send({ data });
+      var newFileUploaded = {
+        description: req.body.description,
+        fileLink: s3FileURL + file.originalname,
+        s3_key: params.Key
+      };
+      // var document = new DOCUMENT(newFileUploaded);
+      // document.save(function(error, newFile) {
+      //   if (error) {
+      //     throw error;
+      //   }
+      // });
+      console.log(proposalId);
+      Proposal.updateOne(
+        { _id: proposalId },
+        { $push: { attachments: newFileUploaded } }
+      ).then(proposal => {
+        console.log(proposal);
+      });
+    }
+  });
+
+  console.log(req.file);
 };

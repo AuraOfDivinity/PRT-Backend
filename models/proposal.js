@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Defining the schema for the Post object. Setting the timestamp key to true will change cerate a new timestamp whenever a new object is added to the database.
 const proposalSchema = new Schema(
   {
     title: {
@@ -14,11 +13,17 @@ const proposalSchema = new Schema(
     },
     content: {
       type: String
-    }
-    // creator: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: 'User'
-    // }
+    },
+    proposalStatus: {
+      type: String,
+      required: true,
+      default: 'draft'
+    },
+    creator: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    attachments: [{ description: String, fileLink: String, s3_key: String }]
   },
   { timestamps: true }
 );
