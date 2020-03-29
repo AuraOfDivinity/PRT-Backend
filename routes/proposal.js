@@ -25,4 +25,6 @@ router.post(
   proposalController.attach
 );
 
+router.post('/getbyuserid', isAuth, proposalController.getByUserid);
+
 module.exports = router;

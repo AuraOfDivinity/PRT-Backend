@@ -2,8 +2,9 @@ const { validationResult } = require('express-validator');
 
 const Proposal = require('../models/proposal');
 const User = require('../models/user');
-const DOCUMENT = require('../models/document');
 var AWS = require('aws-sdk');
+var TurndownService = require('turndown');
+var turndownService = new TurndownService();
 
 exports.createProposal = (req, res, next) => {
   const errors = validationResult(req);
@@ -20,7 +21,8 @@ exports.createProposal = (req, res, next) => {
   const proposal = new Proposal({
     title: title,
     organization: organization,
-    creator: userId
+    creator: userId,
+    content: ''
   });
 
   proposal
@@ -70,13 +72,16 @@ exports.getById = (req, res, next) => {
     if (err) {
       res.send(err);
     } else {
+      if (proposal.content) {
+        var markdownString = turndownService.turndown(proposal.content);
+        proposal.content = markdownString;
+      }
       res.send(proposal);
     }
   });
 };
 
 exports.attach = (req, res, next) => {
-  console.log('ATTACH CALLED');
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed, entered data is incorrect.');
@@ -117,13 +122,6 @@ exports.attach = (req, res, next) => {
         fileLink: s3FileURL + file.originalname,
         s3_key: params.Key
       };
-      // var document = new DOCUMENT(newFileUploaded);
-      // document.save(function(error, newFile) {
-      //   if (error) {
-      //     throw error;
-      //   }
-      // });
-      console.log(proposalId);
       Proposal.updateOne(
         { _id: proposalId },
         { $push: { attachments: newFileUploaded } }
@@ -132,6 +130,23 @@ exports.attach = (req, res, next) => {
       });
     }
   });
+};
 
-  console.log(req.file);
+exports.getByUserid = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const userId = req.body.userId;
+
+  Proposal.find({ creator: userId }, (err, result) => {
+    if (err) {
+      res.send(err);
+    } else {
+      res.send(result);
+    }
+  });
 };
