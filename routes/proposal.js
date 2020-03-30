@@ -27,4 +27,12 @@ router.post(
 
 router.post('/getbyuserid', isAuth, proposalController.getByUserid);
 
+router.post(
+  '/updatestatus/:proposalId',
+  isAuth,
+  proposalController.updateStatus
+);
+
+router.delete('/delete/:proposalId', isAuth, proposalController.deleteProposal);
+
 module.exports = router;

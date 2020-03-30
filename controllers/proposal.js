@@ -5,6 +5,7 @@ const User = require('../models/user');
 var AWS = require('aws-sdk');
 var TurndownService = require('turndown');
 var turndownService = new TurndownService();
+let SubmittedEmail = require('../services/SubmittedEmail');
 
 exports.createProposal = (req, res, next) => {
   const errors = validationResult(req);
@@ -57,6 +58,43 @@ exports.saveProposal = (req, res, next) => {
       res.send(result);
     }
   });
+};
+
+exports.updateStatus = (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const proposalId = req.params.proposalId;
+  const currentStatus = req.body.status;
+  const userId = req.body.userId;
+  let newStatus;
+
+  if (currentStatus === 'DRAFT') {
+    newStatus = 'SUBMITTED';
+    User.findById(userId, (err, result) => {
+      if (err) {
+        res.send(err);
+      } else {
+        SubmittedEmail.sendSuccessfulSubmissionEmail(result.email, result.name);
+      }
+    });
+  }
+
+  Proposal.findByIdAndUpdate(
+    proposalId,
+    { proposalStatus: newStatus },
+    (err, result) => {
+      if (err) {
+        res.send(err);
+      } else {
+        res.send(result);
+      }
+    }
+  );
 };
 
 exports.getById = (req, res, next) => {
@@ -132,7 +170,7 @@ exports.attach = (req, res, next) => {
   });
 };
 
-exports.getByUserid = (req, res, next) => {
+exports.getByUserid = (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed, entered data is incorrect.');
@@ -143,6 +181,18 @@ exports.getByUserid = (req, res, next) => {
   const userId = req.body.userId;
 
   Proposal.find({ creator: userId }, (err, result) => {
+    if (err) {
+      res.send(err);
+    } else {
+      res.send(result);
+    }
+  });
+};
+
+exports.deleteProposal = (req, res) => {
+  const proposalId = req.params.proposalId;
+
+  Proposal.findByIdAndDelete(proposalId, (err, result) => {
     if (err) {
       res.send(err);
     } else {
